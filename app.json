@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "MeteoGG",
+    "slug": "meteogg",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F8FF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.meteogg.app"
+    },
+    "android": {
+      "package": "com.meteogg.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F4F8FF"
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MeteoGG utilise votre position pour afficher la météo locale au démarrage."
+        }
+      ]
+    ]
+  }
+}

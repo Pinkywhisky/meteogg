@@ -50,14 +50,16 @@ export default function ForecastCard({ forecast }) {
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.dateText}>
-          {forecast.dayLabel} {forecast.date}
+          {forecast.dayLabel === "Aujourd'hui"
+            ? forecast.dayLabel
+            : `${forecast.dayLabel} ${forecast.date}`}
         </Text>
         <Text style={styles.icon}>{getConditionIcon(forecast.condition)}</Text>
       </View>
 
       <Text style={styles.condition}>{forecast.condition}</Text>
       <Text style={styles.temperatureText}>
-        Min {forecast.temperatureMin}°C / Max {forecast.temperatureMax}°C
+        {forecast.temperatureMin}°C / {forecast.temperatureMax}°C
       </Text>
 
       <View style={styles.metricsBlock}>

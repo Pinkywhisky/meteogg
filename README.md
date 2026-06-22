@@ -13,6 +13,7 @@ La version actuelle conserve la météo réelle via Open-Meteo, la recherche man
 - Autocomplétion mondiale des villes via Open-Meteo Geocoding API.
 - Priorisation du pays détecté par GPS dans les suggestions.
 - Prévisions météo sur 7 jours.
+- Direction du vent affichée en points cardinaux lisibles.
 - Fallback automatique sur Bezons si la localisation est refusée ou indisponible.
 - Gestion des états loading, error et success.
 - Compatible Expo Go Android.
@@ -140,6 +141,7 @@ Objet météo normalisé :
   humidity: 0,
   windSpeed: 0,
   windDirection: 0,
+  windDirectionLabel: '',
   condition: '',
   weatherCode: null,
   updatedAt: '',
@@ -183,6 +185,35 @@ Paris, Île-de-France, France
 Les champs absents sont ignorés afin de ne jamais afficher `undefined` ou `null`.
 
 En cas d'absence de résultat, l'application affiche `Aucune ville trouvée`. En cas d'indisponibilité de l'API, elle affiche `Suggestions indisponibles` sans modifier la météo déjà affichée.
+
+## Direction du vent
+
+Open-Meteo fournit `wind_direction_10m` en degrés. MeteoGG conserve cette valeur brute dans `windDirection`, puis la convertit avec `degreesToCompass()` pour produire `windDirectionLabel`.
+
+La conversion utilise 16 directions :
+
+```text
+N, NNE, NE, ENE, E, ESE, SE, SSE, S, SSO, SO, OSO, O, ONO, NO, NNO
+```
+
+Exemples :
+
+```text
+0°   -> N
+45°  -> NE
+90°  -> E
+135° -> SE
+180° -> S
+225° -> SO
+270° -> O
+315° -> NO
+```
+
+L'affichage utilisateur prend la forme :
+
+```text
+Vent : 18 km/h SO
+```
 
 ## Prévisions 7 jours
 

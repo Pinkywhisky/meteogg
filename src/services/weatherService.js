@@ -28,6 +28,24 @@ const DAILY_WEATHER_VARIABLES = [
 ].join(',');
 
 const DAY_LABELS = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const COMPASS_DIRECTIONS = [
+  'N',
+  'NNE',
+  'NE',
+  'ENE',
+  'E',
+  'ESE',
+  'SE',
+  'SSE',
+  'S',
+  'SSO',
+  'SO',
+  'OSO',
+  'O',
+  'ONO',
+  'NO',
+  'NNO',
+];
 const CITY_SUGGESTION_MIN_LENGTH = 3;
 const MAX_CITY_SUGGESTIONS = 5;
 const GLOBAL_SUGGESTION_FETCH_COUNT = 10;
@@ -41,6 +59,17 @@ class WeatherServiceError extends Error {
     super(message);
     this.name = 'WeatherServiceError';
   }
+}
+
+function degreesToCompass(degrees) {
+  if (!Number.isFinite(degrees)) {
+    return '';
+  }
+
+  const normalizedDegrees = ((degrees % 360) + 360) % 360;
+  const directionIndex = Math.round(normalizedDegrees / 22.5) % COMPASS_DIRECTIONS.length;
+
+  return COMPASS_DIRECTIONS[directionIndex];
 }
 
 function getConditionFromWeatherCode(code) {
@@ -169,7 +198,7 @@ function normalizeDailyForecast(daily) {
 
       return {
         date: formattedDate.date,
-        dayLabel: formattedDate.dayLabel,
+        dayLabel: index === 0 ? "Aujourd'hui" : formattedDate.dayLabel,
         condition: getConditionFromWeatherCode(weatherCode),
         weatherCode,
         temperatureMin,
@@ -200,6 +229,7 @@ function normalizeWeatherPayload(location, forecastPayload) {
     humidity: Math.round(current.relative_humidity_2m),
     windSpeed: Math.round(current.wind_speed_10m),
     windDirection: Math.round(current.wind_direction_10m),
+    windDirectionLabel: degreesToCompass(current.wind_direction_10m),
     condition: getConditionFromWeatherCode(current.weather_code),
     weatherCode: current.weather_code,
     updatedAt: formatOpenMeteoTime(current.time),
@@ -455,5 +485,5 @@ const weatherService = {
   getCurrentWeatherByCoordinates,
 };
 
-export { getConditionFromWeatherCode };
+export { degreesToCompass, getConditionFromWeatherCode };
 export default weatherService;

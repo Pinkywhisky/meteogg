@@ -65,8 +65,10 @@ export default function WeatherCard({ weather, isAutoLocated, isRefreshing }) {
       <View style={styles.metricsGrid}>
         <WeatherMetric label="Ressenti" value={`${weather.feelsLike}°C`} />
         <WeatherMetric label="Humidité" value={`${weather.humidity}%`} />
-        <WeatherMetric label="Vent" value={`${weather.windSpeed} km/h`} />
-        <WeatherMetric label="Direction" value={`${weather.windDirection}°`} />
+        <WeatherMetric
+          label="Vent"
+          value={`${weather.windSpeed} km/h ${weather.windDirectionLabel}`}
+        />
       </View>
 
       <View style={styles.updatedBlock}>

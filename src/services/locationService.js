@@ -96,6 +96,7 @@ async function getCurrentCity() {
   return {
     city: pickCityFromAddress(address),
     country: address.country || DEFAULT_COUNTRY,
+    isoCountryCode: address.isoCountryCode || null,
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
   };

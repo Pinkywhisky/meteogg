@@ -28,7 +28,9 @@ const DAILY_WEATHER_VARIABLES = [
 ].join(',');
 
 const DAY_LABELS = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const CITY_SUGGESTION_MIN_LENGTH = 3;
 const MAX_CITY_SUGGESTIONS = 5;
+const GLOBAL_SUGGESTION_FETCH_COUNT = 10;
 
 const weatherApiClient = axios.create({
   timeout: 10000,
@@ -75,6 +77,18 @@ function getConditionFromWeatherCode(code) {
   }
 
   return 'Inconnu';
+}
+
+function normalizeComparableText(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 }
 
 function formatOpenMeteoTime(value) {
@@ -198,7 +212,19 @@ function formatLocationLabel(location) {
   return [location.name, location.admin1, location.country].filter(Boolean).join(', ');
 }
 
-function normalizeGeocodingResult(location) {
+function isLocalResult(location, localCountryCode, localCountry) {
+  if (localCountryCode && location.country_code === localCountryCode) {
+    return true;
+  }
+
+  if (!localCountryCode && localCountry) {
+    return normalizeComparableText(location.country) === normalizeComparableText(localCountry);
+  }
+
+  return false;
+}
+
+function normalizeGeocodingResult(location, priority = {}) {
   if (!Number.isFinite(location?.latitude) || !Number.isFinite(location?.longitude)) {
     return null;
   }
@@ -206,35 +232,87 @@ function normalizeGeocodingResult(location) {
   const label = formatLocationLabel(location);
 
   return {
-    id: location.id || `${location.name}-${location.latitude}-${location.longitude}`,
+    id:
+      location.id ||
+      `${location.name}-${location.country}-${location.latitude}-${location.longitude}`,
     city: location.name,
     country: location.country || DEFAULT_COUNTRY,
+    countryCode: location.country_code || null,
     latitude: location.latitude,
     longitude: location.longitude,
     region: location.admin1 || '',
     label: label || location.name || DEFAULT_CITY,
+    isLocal: isLocalResult(location, priority.countryCode, priority.country),
   };
 }
 
-async function fetchGeocodingResults(search, { count = 1, signal } = {}) {
+async function fetchGeocodingResults(search, { count = 1, countryCode, signal } = {}) {
+  const params = {
+    name: search,
+    count,
+    language: 'fr',
+    format: 'json',
+  };
+
+  if (countryCode) {
+    params.countryCode = countryCode;
+  }
+
   const response = await weatherApiClient.get(GEOCODING_API_URL, {
-    params: {
-      name: search,
-      count,
-      language: 'fr',
-      format: 'json',
-      countryCode: 'FR',
-    },
+    params,
     signal,
   });
 
   return Array.isArray(response.data?.results) ? response.data.results : [];
 }
 
+function isCanceledError(error) {
+  return axios.isCancel(error) || error.code === 'ERR_CANCELED' || error.name === 'CanceledError';
+}
+
+function getSuggestionDedupeKey(suggestion) {
+  return [
+    normalizeComparableText(suggestion.city),
+    normalizeComparableText(suggestion.country),
+    suggestion.latitude.toFixed(4),
+    suggestion.longitude.toFixed(4),
+  ].join('|');
+}
+
+function mergePrioritizedSuggestions(localResults, globalResults, priority) {
+  const suggestionsByKey = new Map();
+  const normalizedLocalResults = localResults.map((result) =>
+    normalizeGeocodingResult(result, priority),
+  );
+  const normalizedGlobalResults = globalResults.map((result) =>
+    normalizeGeocodingResult(result, priority),
+  );
+  const localSuggestions = normalizedLocalResults.filter(Boolean).map((suggestion) => ({
+    ...suggestion,
+    isLocal: true,
+  }));
+  const globalSuggestions = normalizedGlobalResults.filter(Boolean);
+  const sortedSuggestions = [
+    ...localSuggestions,
+    ...globalSuggestions.filter((suggestion) => suggestion.isLocal),
+    ...globalSuggestions.filter((suggestion) => !suggestion.isLocal),
+  ];
+
+  sortedSuggestions.forEach((suggestion) => {
+    const key = getSuggestionDedupeKey(suggestion);
+
+    if (!suggestionsByKey.has(key)) {
+      suggestionsByKey.set(key, suggestion);
+    }
+  });
+
+  return Array.from(suggestionsByKey.values()).slice(0, MAX_CITY_SUGGESTIONS);
+}
+
 async function getCoordinatesForCity(city) {
   const search = city.trim();
 
-  if (search.length < 2) {
+  if (search.length < CITY_SUGGESTION_MIN_LENGTH) {
     throw new WeatherServiceError('Ville introuvable');
   }
 
@@ -253,19 +331,58 @@ async function getCoordinatesForCity(city) {
   };
 }
 
-async function getCitySuggestions(query, { signal } = {}) {
+async function getCitySuggestions(query, { country, countryCode, signal } = {}) {
   const search = query.trim();
 
-  if (search.length < 2) {
+  if (search.length < CITY_SUGGESTION_MIN_LENGTH) {
     return [];
   }
 
-  const results = await fetchGeocodingResults(search, {
-    count: MAX_CITY_SUGGESTIONS,
-    signal,
-  });
+  const normalizedCountryCode = countryCode ? countryCode.toUpperCase() : null;
+  const priority = {
+    country,
+    countryCode: normalizedCountryCode,
+  };
+  const requests = [];
 
-  return results.map(normalizeGeocodingResult).filter(Boolean).slice(0, MAX_CITY_SUGGESTIONS);
+  if (normalizedCountryCode) {
+    requests.push(
+      fetchGeocodingResults(search, {
+        count: MAX_CITY_SUGGESTIONS,
+        countryCode: normalizedCountryCode,
+        signal,
+      }),
+    );
+  } else {
+    requests.push(Promise.resolve([]));
+  }
+
+  requests.push(
+    fetchGeocodingResults(search, {
+      count: GLOBAL_SUGGESTION_FETCH_COUNT,
+      signal,
+    }),
+  );
+
+  const [localResponse, globalResponse] = await Promise.allSettled(requests);
+  const localFailed = localResponse.status === 'rejected';
+  const globalFailed = globalResponse.status === 'rejected';
+
+  if (localFailed && globalFailed) {
+    const localReason = localResponse.reason;
+    const globalReason = globalResponse.reason;
+
+    if (isCanceledError(localReason) || isCanceledError(globalReason)) {
+      throw localReason || globalReason;
+    }
+
+    throw new WeatherServiceError('Suggestions indisponibles');
+  }
+
+  const localResults = localResponse.status === 'fulfilled' ? localResponse.value : [];
+  const globalResults = globalResponse.status === 'fulfilled' ? globalResponse.value : [];
+
+  return mergePrioritizedSuggestions(localResults, globalResults, priority);
 }
 
 function normalizeCoordinateLocation(location) {
@@ -301,7 +418,7 @@ function normalizeError(error) {
     return error;
   }
 
-  if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
+  if (isCanceledError(error)) {
     return error;
   }
 

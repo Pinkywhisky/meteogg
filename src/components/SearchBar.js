@@ -39,6 +39,7 @@ export default function SearchBar({
                   style={styles.suggestionButton}
                 >
                   <Text style={styles.suggestionText}>{suggestion.label}</Text>
+                  {suggestion.isLocal ? <Text style={styles.localBadge}>Pays actuel</Text> : null}
                 </TouchableOpacity>
               ))
             : null}
@@ -96,6 +97,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.medium,
     letterSpacing: 0,
+  },
+  localBadge: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.semibold,
+    letterSpacing: 0,
+    marginTop: theme.spacing.xs,
   },
   messageText: {
     color: theme.colors.textMuted,

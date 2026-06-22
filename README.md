@@ -2,15 +2,16 @@
 
 MeteoGG est une application mobile météo française construite avec React Native, Expo SDK 54 et JavaScript.
 
-La version actuelle conserve la météo réelle via Open-Meteo, la recherche manuelle par ville, la géolocalisation GPS au démarrage et ajoute une section de prévisions météo sur 7 jours.
+La version actuelle conserve la météo réelle via Open-Meteo, la recherche manuelle par ville, la géolocalisation GPS au démarrage, les prévisions météo sur 7 jours et l'autocomplétion mondiale des villes.
 
 ## Fonctionnalités
 
 - Météo réelle via Open-Meteo.
 - Géolocalisation GPS au démarrage.
 - Reverse geocoding avec Expo Location pour afficher la ville détectée.
-- Recherche manuelle par ville française via l'icône loupe.
-- Recherche secondaire masquée par défaut pour privilégier la météo GPS.
+- Recherche manuelle par ville via l'icône loupe.
+- Autocomplétion mondiale des villes via Open-Meteo Geocoding API.
+- Priorisation du pays détecté par GPS dans les suggestions.
 - Prévisions météo sur 7 jours.
 - Fallback automatique sur Bezons si la localisation est refusée ou indisponible.
 - Gestion des états loading, error et success.
@@ -51,10 +52,10 @@ MeteoGG/
 ```
 
 - `HomeScreen.js` orchestre l'état de l'écran et appelle uniquement les services.
-- `SearchBar.js` contient le champ de recherche et son bouton.
+- `SearchBar.js` contient le champ de recherche, son bouton et la liste de suggestions.
 - `ForecastList.js` et `ForecastCard.js` affichent les prévisions normalisées.
 - `locationService.js` contient toute la logique GPS, permission et reverse geocoding.
-- `weatherService.js` contient toute la logique Open-Meteo et retourne un objet météo normalisé.
+- `weatherService.js` contient toute la logique Open-Meteo, géocodage et normalisation.
 - `WeatherCard.js` affiche uniquement les données météo courantes normalisées.
 - `theme.js` centralise les couleurs, espacements, rayons, typographies et ombres.
 
@@ -89,6 +90,8 @@ Si la permission est refusée, si le GPS est indisponible ou si le reverse geoco
 ```text
 Localisation désactivée - météo de Bezons affichée
 ```
+
+Dans ce cas, l'autocomplétion fonctionne en recherche mondiale classique, sans priorité locale.
 
 ## Fonctionnement Open-Meteo
 
@@ -156,9 +159,32 @@ Objet météo normalisé :
 }
 ```
 
-## Autocomplétion des villes\n\nMeteoGG utilise exclusivement l'API Geocoding Open-Meteo pour proposer jusqu'à 5 villes pendant la saisie.\n\nLa recherche est lancée à partir de 2 caractères, avec un debounce de 400 ms et annulation des requêtes obsolètes via AbortController.\n\nUne suggestion est affichée au format :\n\n`	ext\nParis, Île-de-France, France\n`\n\nLes champs absents sont ignorés afin de ne jamais afficher undefined ou
+## Autocomplétion des villes
 
-ull.\n\nEn cas d'absence de résultat, l'application affiche Aucune ville trouvée. En cas d'indisponibilité de l'API, elle affiche Suggestions indisponibles.\n\n## Prévisions 7 jours
+MeteoGG utilise exclusivement l'API Geocoding Open-Meteo pour proposer jusqu'à 5 villes pendant la saisie.
+
+La recherche est lancée à partir de 3 caractères, avec un debounce de 400 ms et annulation des requêtes obsolètes via `AbortController`.
+
+Quand la localisation GPS a permis de détecter un pays, MeteoGG lance deux recherches :
+
+1. Une recherche locale avec `countryCode` du pays détecté.
+2. Une recherche mondiale sans filtre pays.
+
+Les résultats sont fusionnés, dédupliqués, puis triés avec le pays détecté en premier. Les villes étrangères restent disponibles dans les suggestions.
+
+Si la localisation est refusée ou indisponible, MeteoGG utilise une recherche mondiale classique.
+
+Une suggestion est affichée au format :
+
+```text
+Paris, Île-de-France, France
+```
+
+Les champs absents sont ignorés afin de ne jamais afficher `undefined` ou `null`.
+
+En cas d'absence de résultat, l'application affiche `Aucune ville trouvée`. En cas d'indisponibilité de l'API, elle affiche `Suggestions indisponibles` sans modifier la météo déjà affichée.
+
+## Prévisions 7 jours
 
 Les prévisions sont fournies par Open-Meteo via les données `daily` de l'API Forecast.
 
@@ -192,9 +218,10 @@ npx prettier --check App.js app.json package.json babel.config.js .eslintrc.js .
 - Recherche ville
 - Géolocalisation GPS
 
-### Fonctionnalité ajoutée
+### Fonctionnalités ajoutées
 
 - Prévisions 7 jours
+- Autocomplétion mondiale avec priorité pays détecté
 
 ### Prochaines évolutions
 

@@ -32,6 +32,7 @@ export default function HomeScreen() {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionMessage, setSuggestionMessage] = useState('');
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+  const [detectedCountry, setDetectedCountry] = useState(null);
 
   const clearSuggestions = useCallback(() => {
     setSuggestions([]);
@@ -104,10 +105,15 @@ export default function HomeScreen() {
       setWeather(currentWeather);
       setCityQuery(currentWeather.city);
       setIsAutoLocated(true);
+      setDetectedCountry({
+        country: currentCity.country,
+        countryCode: currentCity.isoCountryCode,
+      });
       setLocationMessage(AUTO_LOCATION_MESSAGE);
     } catch (locationError) {
       console.warn('[HomeScreen] Localisation indisponible:', locationError.message);
       setIsAutoLocated(false);
+      setDetectedCountry(null);
       setLocationMessage(FALLBACK_LOCATION_MESSAGE);
 
       try {
@@ -135,7 +141,7 @@ export default function HomeScreen() {
 
     const search = cityQuery.trim();
 
-    if (search.length < 2) {
+    if (search.length < 3) {
       clearSuggestions();
       return undefined;
     }
@@ -147,6 +153,8 @@ export default function HomeScreen() {
 
       try {
         const nextSuggestions = await weatherService.getCitySuggestions(search, {
+          country: detectedCountry?.country,
+          countryCode: detectedCountry?.countryCode,
           signal: controller.signal,
         });
 
@@ -169,7 +177,7 @@ export default function HomeScreen() {
       clearTimeout(debounceId);
       controller.abort();
     };
-  }, [cityQuery, clearSuggestions, isSearchVisible]);
+  }, [cityQuery, clearSuggestions, detectedCountry, isSearchVisible]);
 
   function handleSearch() {
     Keyboard.dismiss();

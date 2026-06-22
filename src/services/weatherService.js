@@ -10,6 +10,7 @@ export const DEFAULT_COUNTRY = 'France';
 
 const GEOCODING_API_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_API_URL = 'https://api.open-meteo.com/v1/forecast';
+const AIR_QUALITY_API_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const WEATHER_SOURCE = 'Open-Meteo';
 const WEATHER_VARIABLES = [
   'temperature_2m',
@@ -25,7 +26,11 @@ const DAILY_WEATHER_VARIABLES = [
   'temperature_2m_min',
   'precipitation_probability_max',
   'wind_speed_10m_max',
+  'sunrise',
+  'sunset',
+  'uv_index_max',
 ].join(',');
+const AIR_QUALITY_VARIABLES = ['european_aqi', 'pm10', 'pm2_5'].join(',');
 
 const DAY_LABELS = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 const COMPASS_DIRECTIONS = [
@@ -70,6 +75,58 @@ function degreesToCompass(degrees) {
   const directionIndex = Math.round(normalizedDegrees / 22.5) % COMPASS_DIRECTIONS.length;
 
   return COMPASS_DIRECTIONS[directionIndex];
+}
+
+function getUvLevel(uvIndex) {
+  if (!Number.isFinite(uvIndex)) {
+    return 'UV indisponible';
+  }
+
+  if (uvIndex <= 2) {
+    return 'Faible';
+  }
+
+  if (uvIndex <= 5) {
+    return 'Modéré';
+  }
+
+  if (uvIndex <= 7) {
+    return 'Élevé';
+  }
+
+  if (uvIndex <= 10) {
+    return 'Très élevé';
+  }
+
+  return 'Extrême';
+}
+
+function getAirQualityLevel(europeanAqi) {
+  if (!Number.isFinite(europeanAqi)) {
+    return "Qualité de l'air indisponible";
+  }
+
+  if (europeanAqi <= 20) {
+    return 'Bon';
+  }
+
+  if (europeanAqi <= 40) {
+    return 'Moyen';
+  }
+
+  if (europeanAqi <= 60) {
+    return 'Dégradé';
+  }
+
+  if (europeanAqi <= 80) {
+    return 'Mauvais';
+  }
+
+  if (europeanAqi <= 100) {
+    return 'Très mauvais';
+  }
+
+  return 'Extrêmement mauvais';
 }
 
 function getConditionFromWeatherCode(code) {
@@ -136,6 +193,21 @@ function formatOpenMeteoTime(value) {
   return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
+function formatShortTime(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+
+  const [, timePart = ''] = value.split('T');
+  const [hour, minute] = timePart.split(':');
+
+  if (!hour || !minute) {
+    return '';
+  }
+
+  return hour + ':' + minute;
+}
+
 function formatForecastDate(value) {
   if (!value || typeof value !== 'string') {
     return { date: '', dayLabel: '' };
@@ -169,6 +241,53 @@ function hasCompleteCurrentWeather(current) {
 
 function getNullableRoundedValue(value) {
   return Number.isFinite(value) ? Math.round(value) : null;
+}
+
+function getNullableUvValue(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.round(value * 10) / 10;
+}
+
+function getUnavailableAirQuality() {
+  return {
+    europeanAqi: null,
+    level: "Qualité de l'air indisponible",
+    pm10: null,
+    pm25: null,
+  };
+}
+
+function normalizeAirQualityPayload(airQualityPayload) {
+  const current = airQualityPayload?.current;
+  const europeanAqi = getNullableRoundedValue(current?.european_aqi);
+
+  if (europeanAqi === null) {
+    return getUnavailableAirQuality();
+  }
+
+  return {
+    europeanAqi,
+    level: getAirQualityLevel(europeanAqi),
+    pm10: getNullableRoundedValue(current?.pm10),
+    pm25: getNullableRoundedValue(current?.pm2_5),
+  };
+}
+
+function normalizeTodayDetails(daily) {
+  const uvIndex = getNullableUvValue(daily?.uv_index_max?.[0]);
+
+  return {
+    sunrise: formatShortTime(daily?.sunrise?.[0]),
+    sunset: formatShortTime(daily?.sunset?.[0]),
+    uvIndex,
+    uvLevel: getUvLevel(uvIndex),
+    todayPrecipitationProbability: getNullableRoundedValue(
+      daily?.precipitation_probability_max?.[0],
+    ),
+  };
 }
 
 function normalizeDailyForecast(daily) {
@@ -212,12 +331,18 @@ function normalizeDailyForecast(daily) {
     .filter(Boolean);
 }
 
-function normalizeWeatherPayload(location, forecastPayload) {
+function normalizeWeatherPayload(
+  location,
+  forecastPayload,
+  airQuality = getUnavailableAirQuality(),
+) {
   const current = forecastPayload?.current;
 
   if (!hasCompleteCurrentWeather(current)) {
     throw new WeatherServiceError('Données météo incomplètes');
   }
+
+  const todayDetails = normalizeTodayDetails(forecastPayload?.daily);
 
   return {
     city: location.name || DEFAULT_CITY,
@@ -234,6 +359,8 @@ function normalizeWeatherPayload(location, forecastPayload) {
     weatherCode: current.weather_code,
     updatedAt: formatOpenMeteoTime(current.time),
     source: WEATHER_SOURCE,
+    ...todayDetails,
+    airQuality,
     forecast: normalizeDailyForecast(forecastPayload?.daily),
   };
 }
@@ -428,19 +555,49 @@ function normalizeCoordinateLocation(location) {
   };
 }
 
-async function getForecastForLocation(location) {
-  const response = await weatherApiClient.get(FORECAST_API_URL, {
-    params: {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      current: WEATHER_VARIABLES,
-      daily: DAILY_WEATHER_VARIABLES,
-      forecast_days: 7,
-      timezone: 'auto',
-    },
-  });
+async function getAirQualityForLocation(location) {
+  try {
+    const response = await weatherApiClient.get(AIR_QUALITY_API_URL, {
+      params: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        current: AIR_QUALITY_VARIABLES,
+        timezone: 'auto',
+      },
+    });
 
-  return normalizeWeatherPayload(location, response.data);
+    return normalizeAirQualityPayload(response.data);
+  } catch (error) {
+    console.warn("[weatherService] Qualité de l'air indisponible:", error.message);
+    return getUnavailableAirQuality();
+  }
+}
+
+async function getForecastForLocation(location) {
+  const [forecastResponse, airQualityResponse] = await Promise.allSettled([
+    weatherApiClient.get(FORECAST_API_URL, {
+      params: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        current: WEATHER_VARIABLES,
+        daily: DAILY_WEATHER_VARIABLES,
+        forecast_days: 7,
+        timezone: 'auto',
+      },
+    }),
+    getAirQualityForLocation(location),
+  ]);
+
+  if (forecastResponse.status === 'rejected') {
+    throw forecastResponse.reason;
+  }
+
+  const airQuality =
+    airQualityResponse.status === 'fulfilled'
+      ? airQualityResponse.value
+      : getUnavailableAirQuality();
+
+  return normalizeWeatherPayload(location, forecastResponse.value.data, airQuality);
 }
 
 function normalizeError(error) {
@@ -485,5 +642,5 @@ const weatherService = {
   getCurrentWeatherByCoordinates,
 };
 
-export { degreesToCompass, getConditionFromWeatherCode };
+export { degreesToCompass, getAirQualityLevel, getConditionFromWeatherCode, getUvLevel };
 export default weatherService;

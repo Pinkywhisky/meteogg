@@ -6,6 +6,7 @@ import ForecastList from '../components/ForecastList';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import WeatherCard from '../components/WeatherCard';
+import WeatherDetails from '../components/WeatherDetails';
 import locationService from '../services/locationService';
 import weatherService, { DEFAULT_CITY } from '../services/weatherService';
 import { theme } from '../styles/theme';
@@ -245,6 +246,7 @@ export default function HomeScreen() {
                 isAutoLocated={isAutoLocated}
                 isRefreshing={isLoading}
               />
+              <WeatherDetails weather={weather} />
               <ForecastList forecast={weather.forecast} />
             </>
           ) : null}

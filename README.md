@@ -2,7 +2,7 @@
 
 MeteoGG est une application mobile météo française construite avec React Native, Expo SDK 54 et JavaScript.
 
-La version actuelle conserve la météo réelle via Open-Meteo, la recherche manuelle par ville, la géolocalisation GPS au démarrage, les prévisions météo sur 7 jours et l'autocomplétion mondiale des villes.
+La version actuelle conserve la météo réelle via Open-Meteo, la recherche manuelle par ville, la géolocalisation GPS au démarrage, les détails météo avancés, les prévisions météo sur 7 jours et l'autocomplétion mondiale des villes.
 
 ## Fonctionnalités
 
@@ -14,6 +14,7 @@ La version actuelle conserve la météo réelle via Open-Meteo, la recherche man
 - Priorisation du pays détecté par GPS dans les suggestions.
 - Prévisions météo sur 7 jours.
 - Direction du vent affichée en points cardinaux lisibles.
+- Détails météo avancés : lever/coucher du soleil, UV, pluie du jour et qualité de l'air.
 - Fallback automatique sur Bezons si la localisation est refusée ou indisponible.
 - Gestion des états loading, error et success.
 - Compatible Expo Go Android.
@@ -35,7 +36,8 @@ MeteoGG/
 │   │   ├── ForecastList.js
 │   │   ├── Header.js
 │   │   ├── SearchBar.js
-│   │   └── WeatherCard.js
+│   │   ├── WeatherCard.js
+│   │   └── WeatherDetails.js
 │   ├── screens/
 │   │   └── HomeScreen.js
 │   ├── services/
@@ -58,6 +60,7 @@ MeteoGG/
 - `locationService.js` contient toute la logique GPS, permission et reverse geocoding.
 - `weatherService.js` contient toute la logique Open-Meteo, géocodage et normalisation.
 - `WeatherCard.js` affiche uniquement les données météo courantes normalisées.
+- `WeatherDetails.js` affiche les détails avancés normalisés sans connaître les réponses brutes Open-Meteo.
 - `theme.js` centralise les couleurs, espacements, rayons, typographies et ombres.
 
 ## Installation
@@ -105,11 +108,11 @@ Open-Meteo Geocoding API
 ↓
 Latitude / Longitude
 ↓
-Open-Meteo Forecast API
+Open-Meteo Forecast API + Air Quality API
 ↓
 Normalisation dans weatherService.js
 ↓
-WeatherCard + ForecastList
+WeatherCard + WeatherDetails + ForecastList
 ```
 
 Démarrage avec GPS :
@@ -121,11 +124,11 @@ Location.getCurrentPositionAsync()
 ↓
 Reverse geocoding Expo Location
 ↓
-Open-Meteo Forecast API par coordonnées
+Open-Meteo Forecast API par coordonnées + Air Quality API
 ↓
 Normalisation dans weatherService.js
 ↓
-WeatherCard + ForecastList
+WeatherCard + WeatherDetails + ForecastList
 ```
 
 Objet météo normalisé :
@@ -146,6 +149,17 @@ Objet météo normalisé :
   weatherCode: null,
   updatedAt: '',
   source: 'Open-Meteo',
+  sunrise: '',
+  sunset: '',
+  uvIndex: null,
+  uvLevel: '',
+  todayPrecipitationProbability: null,
+  airQuality: {
+    europeanAqi: null,
+    level: '',
+    pm10: null,
+    pm25: null,
+  },
   forecast: [
     {
       date: '',
@@ -215,6 +229,50 @@ L'affichage utilisateur prend la forme :
 Vent : 18 km/h SO
 ```
 
+## Détails météo avancés
+
+Le bloc "Détails météo" est affiché sous la météo actuelle et avant les prévisions 7 jours.
+
+Les données viennent de l'API Open-Meteo Forecast via les variables `daily` suivantes :
+
+- `sunrise`
+- `sunset`
+- `uv_index_max`
+- `precipitation_probability_max`
+
+Les heures de lever et coucher du soleil sont formatées en heure locale courte, par exemple `05:48` ou `21:58`.
+
+### Indice UV
+
+MeteoGG convertit `uv_index_max` avec `getUvLevel()` :
+
+- 0 à 2 : Faible
+- 3 à 5 : Modéré
+- 6 à 7 : Élevé
+- 8 à 10 : Très élevé
+- 11+ : Extrême
+
+Si la valeur est absente, l'application affiche `UV indisponible`.
+
+### Qualité de l'air
+
+La qualité de l'air est récupérée via l'API Open-Meteo Air Quality avec les variables `current` suivantes :
+
+- `european_aqi`
+- `pm10`
+- `pm2_5`
+
+MeteoGG convertit `european_aqi` avec `getAirQualityLevel()` :
+
+- 0 à 20 : Bon
+- 21 à 40 : Moyen
+- 41 à 60 : Dégradé
+- 61 à 80 : Mauvais
+- 81 à 100 : Très mauvais
+- 100+ : Extrêmement mauvais
+
+L'appel Air Quality est optionnel et non bloquant. Si cette API échoue ou ne renvoie pas de données, la météo actuelle et les prévisions restent affichées, avec le message `Qualité de l'air indisponible`.
+
 ## Prévisions 7 jours
 
 Les prévisions sont fournies par Open-Meteo via les données `daily` de l'API Forecast.
@@ -253,6 +311,7 @@ npx prettier --check App.js app.json package.json babel.config.js .eslintrc.js .
 
 - Prévisions 7 jours
 - Autocomplétion mondiale avec priorité pays détecté
+- Détails météo avancés et qualité de l'air
 
 ### Prochaines évolutions
 

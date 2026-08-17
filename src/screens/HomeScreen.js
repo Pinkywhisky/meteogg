@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ForecastList from '../components/ForecastList';
@@ -9,17 +17,30 @@ import WeatherCard from '../components/WeatherCard';
 import WeatherDetails from '../components/WeatherDetails';
 import locationService from '../services/locationService';
 import weatherService, { DEFAULT_CITY } from '../services/weatherService';
-import { theme } from '../styles/theme';
+import { getAppTheme, getWeatherTheme, theme } from '../styles/theme';
 
 const FALLBACK_LOCATION_MESSAGE = 'Localisation désactivée - météo de Bezons affichée';
 const MANUAL_SEARCH_MESSAGE = 'Ville recherchée manuellement';
-const AUTO_LOCATION_MESSAGE = 'Position détectée automatiquement';
 const INITIAL_LOCATION_MESSAGE = 'Détection de votre position...';
 const DEFAULT_WEATHER_ERROR = 'Impossible de récupérer la météo';
 const SEARCH_DEBOUNCE_MS = 400;
 
 function isCanceledRequest(error) {
   return error.code === 'ERR_CANCELED' || error.name === 'CanceledError';
+}
+
+function formatUpdatedAt(value) {
+  if (!value || typeof value !== 'string') {
+    return 'Indisponible';
+  }
+
+  const separatorIndex = value.lastIndexOf(' ');
+
+  if (separatorIndex === -1) {
+    return value;
+  }
+
+  return value.slice(0, separatorIndex) + ' à ' + value.slice(separatorIndex + 1);
 }
 
 export default function HomeScreen() {
@@ -34,6 +55,10 @@ export default function HomeScreen() {
   const [suggestionMessage, setSuggestionMessage] = useState('');
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
   const [detectedCountry, setDetectedCountry] = useState(null);
+  useColorScheme();
+
+  const appTheme = getAppTheme('light');
+  const weatherTheme = weather ? getWeatherTheme(weather) : theme.weatherThemes.sunny;
 
   const clearSuggestions = useCallback(() => {
     setSuggestions([]);
@@ -110,7 +135,7 @@ export default function HomeScreen() {
         country: currentCity.country,
         countryCode: currentCity.isoCountryCode,
       });
-      setLocationMessage(AUTO_LOCATION_MESSAGE);
+      setLocationMessage('');
     } catch (locationError) {
       console.warn('[HomeScreen] Localisation indisponible:', locationError.message);
       setIsAutoLocated(false);
@@ -203,7 +228,7 @@ export default function HomeScreen() {
   const searchMessage = isSuggestionLoading ? 'Recherche de villes...' : suggestionMessage;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: weatherTheme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -212,8 +237,9 @@ export default function HomeScreen() {
         <Header
           isSearchVisible={isSearchVisible}
           onToggleSearch={handleToggleSearch}
-          title="MeteoGG"
-          subtitle="Météo locale par Open-Meteo"
+          subtitle={weather ? weather.country : 'Météo locale par Open-Meteo'}
+          title={weather ? weather.city : 'MeteoGG'}
+          weatherTheme={weatherTheme}
         />
 
         {isSearchVisible ? (
@@ -228,14 +254,22 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {locationMessage ? <Text style={styles.locationText}>{locationMessage}</Text> : null}
-        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+        {locationMessage ? (
+          <Text style={[styles.locationText, { color: appTheme.textMuted }]}>
+            {locationMessage}
+          </Text>
+        ) : null}
+        {errorMessage ? (
+          <Text style={[styles.errorText, { color: appTheme.danger }]}>{errorMessage}</Text>
+        ) : null}
 
         <View style={styles.weatherSection}>
           {isLoading && !weather ? (
             <View style={styles.loadingBlock}>
-              <ActivityIndicator color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Chargement de la météo...</Text>
+              <ActivityIndicator color={appTheme.primary} />
+              <Text style={[styles.loadingText, { color: appTheme.textMuted }]}>
+                Chargement de la météo...
+              </Text>
             </View>
           ) : null}
 
@@ -245,9 +279,18 @@ export default function HomeScreen() {
                 weather={weather}
                 isAutoLocated={isAutoLocated}
                 isRefreshing={isLoading}
+                weatherTheme={weatherTheme}
               />
-              <WeatherDetails weather={weather} />
-              <ForecastList forecast={weather.forecast} />
+              <WeatherDetails weather={weather} weatherTheme={weatherTheme} />
+              <ForecastList forecast={weather.forecast} weatherTheme={weatherTheme} />
+              <View style={styles.metaBlock}>
+                <Text style={[styles.metaText, { color: appTheme.textMuted }]}>
+                  Mis à jour le {formatUpdatedAt(weather.updatedAt)}
+                </Text>
+                <Text style={[styles.metaText, { color: appTheme.textMuted }]}>
+                  Données : {weather.source}
+                </Text>
+              </View>
             </>
           ) : null}
         </View>
@@ -263,13 +306,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xxxl,
+    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
   },
   locationText: {
     alignSelf: 'center',
-    color: theme.colors.textMuted,
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.medium,
     letterSpacing: 0,
@@ -280,7 +322,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     alignSelf: 'center',
-    color: theme.colors.danger,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.semibold,
     letterSpacing: 0,
@@ -290,16 +331,26 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   weatherSection: {
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.md,
   },
   loadingBlock: {
     alignItems: 'center',
     paddingVertical: theme.spacing.xxl,
   },
   loadingText: {
-    color: theme.colors.textMuted,
     fontSize: theme.typography.sizes.md,
     letterSpacing: 0,
     marginTop: theme.spacing.md,
+  },
+  metaBlock: {
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
+  },
+  metaText: {
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.medium,
+    letterSpacing: 0,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });

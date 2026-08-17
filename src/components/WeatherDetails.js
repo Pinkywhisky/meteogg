@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '../styles/theme';
 
-function getDisplayValue(value, fallback = 'Indisponible') {
+function getDisplayValue(value, fallback = 'Indispo.') {
   if (value === null || value === undefined || value === '' || Number.isNaN(value)) {
     return fallback;
   }
@@ -10,72 +10,58 @@ function getDisplayValue(value, fallback = 'Indisponible') {
   return value;
 }
 
-function DetailRow({ icon, text }) {
+function MiniTile({ icon, label, value, weatherTheme }) {
+  const tileTheme = weatherTheme || theme.weatherThemes.sunny;
+
   return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailIcon}>{icon}</Text>
-      <Text style={styles.detailText}>{text}</Text>
+    <View style={[styles.tile, { backgroundColor: tileTheme.tile, borderColor: tileTheme.border }]}>
+      <Text style={styles.icon}>{icon}</Text>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={[styles.value, { color: tileTheme.primary }]}
+      >
+        {value}
+      </Text>
+      <Text numberOfLines={1} style={styles.label}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-function getUvText(weather) {
-  if (!Number.isFinite(weather.uvIndex)) {
-    return 'UV indisponible';
-  }
-
-  return 'UV : ' + weather.uvIndex + ' - ' + weather.uvLevel;
-}
-
-function getPrecipitationText(weather) {
+function getRainValue(weather) {
   if (!Number.isFinite(weather.todayPrecipitationProbability)) {
-    return "Pluie aujourd'hui : indisponible";
+    return 'Indispo.';
   }
 
-  return "Pluie aujourd'hui : " + weather.todayPrecipitationProbability + ' %';
+  return weather.todayPrecipitationProbability + '%';
 }
 
-function getAirQualityText(airQuality) {
-  if (!Number.isFinite(airQuality?.europeanAqi)) {
-    return "Qualité de l'air indisponible";
-  }
-
-  return 'Air : ' + airQuality.europeanAqi + ' - ' + airQuality.level;
-}
-
-function getParticleText(airQuality) {
-  if (!Number.isFinite(airQuality?.pm10) && !Number.isFinite(airQuality?.pm25)) {
-    return '';
-  }
-
-  const particles = [];
-
-  if (Number.isFinite(airQuality.pm10)) {
-    particles.push('PM10 ' + airQuality.pm10 + ' µg/m³');
-  }
-
-  if (Number.isFinite(airQuality.pm25)) {
-    particles.push('PM2.5 ' + airQuality.pm25 + ' µg/m³');
-  }
-
-  return particles.join(' · ');
-}
-
-export default function WeatherDetails({ weather }) {
-  const airQuality = weather.airQuality || {};
-  const particleText = getParticleText(airQuality);
-
+export default function WeatherDetails({ weather, weatherTheme }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Détails météo</Text>
 
-      <View style={styles.detailsBlock}>
-        <DetailRow icon="🌅" text={'Lever : ' + getDisplayValue(weather.sunrise)} />
-        <DetailRow icon="🌇" text={'Coucher : ' + getDisplayValue(weather.sunset)} />
-        <DetailRow icon="☀️" text={getUvText(weather)} />
-        <DetailRow icon="💧" text={getPrecipitationText(weather)} />
-        <DetailRow icon="🌫️" text={getAirQualityText(airQuality)} />
-        {particleText ? <Text style={styles.particleText}>{particleText}</Text> : null}
+      <View style={styles.tilesRow}>
+        <MiniTile
+          icon="🌅"
+          label="Lever"
+          value={getDisplayValue(weather.sunrise)}
+          weatherTheme={weatherTheme}
+        />
+        <MiniTile
+          icon="🌇"
+          label="Coucher"
+          value={getDisplayValue(weather.sunset)}
+          weatherTheme={weatherTheme}
+        />
+        <MiniTile
+          icon="💧"
+          label="Pluie"
+          value={getRainValue(weather)}
+          weatherTheme={weatherTheme}
+        />
       </View>
     </View>
   );
@@ -84,7 +70,7 @@ export default function WeatherDetails({ weather }) {
 const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.lg,
     maxWidth: 440,
     width: '100%',
   },
@@ -93,39 +79,40 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
-  detailsBlock: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
+  tilesRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  tile: {
+    alignItems: 'center',
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    padding: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  detailRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-  },
-  detailIcon: {
-    fontSize: 20,
-    lineHeight: 24,
-    marginRight: theme.spacing.md,
-    width: 28,
-  },
-  detailText: {
-    color: theme.colors.textSecondary,
     flex: 1,
-    fontSize: theme.typography.sizes.md,
-    fontWeight: theme.typography.weights.medium,
-    letterSpacing: 0,
+    minHeight: 84,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    ...theme.shadows.soft,
   },
-  particleText: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.sizes.sm,
-    fontWeight: theme.typography.weights.medium,
+  icon: {
+    fontSize: 21,
+    lineHeight: 25,
+    marginBottom: theme.spacing.xs,
+  },
+  value: {
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
-    paddingLeft: 40,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  label: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.semibold,
+    letterSpacing: 0,
+    marginTop: theme.spacing.xs,
+    textAlign: 'center',
   },
 });

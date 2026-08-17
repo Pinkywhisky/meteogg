@@ -15,18 +15,32 @@ export default function SearchBar({
 
   return (
     <View style={styles.container}>
-      <TextInput
-        autoCapitalize="words"
-        autoCorrect={false}
-        editable={!disabled}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmit}
-        placeholder="Rechercher une ville"
-        placeholderTextColor={theme.colors.textMuted}
-        returnKeyType="search"
-        style={styles.input}
-        value={value}
-      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          autoCapitalize="words"
+          autoCorrect={false}
+          editable={!disabled}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmit}
+          placeholder="Rechercher une ville"
+          placeholderTextColor={theme.colors.textMuted}
+          returnKeyType="search"
+          style={styles.input}
+          value={value}
+        />
+        {value ? (
+          <TouchableOpacity
+            accessibilityLabel="Effacer la ville saisie"
+            activeOpacity={0.72}
+            disabled={disabled}
+            hitSlop={8}
+            onPress={() => onChangeText('')}
+            style={styles.clearButton}
+          >
+            <Text style={styles.clearButtonText}>?</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       {hasSuggestions || message ? (
         <View style={styles.suggestionsContainer}>
@@ -66,17 +80,38 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     width: '100%',
   },
-  input: {
+  inputContainer: {
+    alignItems: 'center',
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: theme.spacing.sm,
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.sm,
+  },
+  input: {
     color: theme.colors.textPrimary,
+    flex: 1,
     fontSize: theme.typography.sizes.md,
     letterSpacing: 0,
-    marginBottom: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
+  },
+  clearButton: {
+    alignItems: 'center',
+    borderRadius: theme.radius.pill,
+    height: 32,
+    justifyContent: 'center',
+    marginLeft: theme.spacing.sm,
+    width: 32,
+  },
+  clearButtonText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.bold,
+    letterSpacing: 0,
+    lineHeight: 20,
   },
   suggestionsContainer: {
     backgroundColor: theme.colors.surface,

@@ -3,19 +3,37 @@ import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../styles/theme';
 import ForecastCard from './ForecastCard';
 
-export default function ForecastList({ forecast }) {
+export default function ForecastList({ forecast, weatherTheme }) {
   const hasForecast = Array.isArray(forecast) && forecast.length > 0;
+  const listTheme = weatherTheme || theme.weatherThemes.sunny;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Prévisions 7 jours</Text>
 
       {hasForecast ? (
-        forecast.map((item) => (
-          <ForecastCard forecast={item} key={`${item.date}-${item.weatherCode}`} />
-        ))
+        <View
+          style={[
+            styles.listBlock,
+            { backgroundColor: listTheme.hero, borderColor: listTheme.border },
+          ]}
+        >
+          {forecast.map((item, index) => (
+            <ForecastCard
+              forecast={item}
+              isLast={index === forecast.length - 1}
+              key={item.date + '-' + item.weatherCode}
+              weatherTheme={weatherTheme}
+            />
+          ))}
+        </View>
       ) : (
-        <View style={styles.emptyBlock}>
+        <View
+          style={[
+            styles.emptyBlock,
+            { backgroundColor: listTheme.tile, borderColor: listTheme.border },
+          ]}
+        >
           <Text style={styles.emptyText}>Prévisions indisponibles</Text>
         </View>
       )}
@@ -26,7 +44,7 @@ export default function ForecastList({ forecast }) {
 const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.lg,
     maxWidth: 440,
     width: '100%',
   },
@@ -35,12 +53,17 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  listBlock: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.xs,
+    ...theme.shadows.soft,
   },
   emptyBlock: {
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceMuted,
-    borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     padding: theme.spacing.lg,

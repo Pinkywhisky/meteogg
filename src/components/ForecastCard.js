@@ -1,121 +1,92 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../styles/theme';
+import { getWeatherIcon, theme } from '../styles/theme';
 
-function getConditionIcon(condition) {
-  const normalizedCondition = condition.toLowerCase();
-
-  if (normalizedCondition.includes('orage')) {
-    return '⛈️';
+function getDayText(forecast) {
+  if (forecast.dayLabel === "Aujourd'hui") {
+    return 'Auj.';
   }
 
-  if (normalizedCondition.includes('pluie') || normalizedCondition.includes('bruine')) {
-    return '🌧️';
-  }
-
-  if (normalizedCondition.includes('neige')) {
-    return '❄️';
-  }
-
-  if (normalizedCondition.includes('brouillard')) {
-    return '🌫️';
-  }
-
-  if (normalizedCondition.includes('nuage')) {
-    return '☁️';
-  }
-
-  if (normalizedCondition.includes('inconnu')) {
-    return '🌡️';
-  }
-
-  return '☀️';
+  return forecast.dayLabel.replace('.', '');
 }
 
-function OptionalMetric({ label, value, suffix }) {
-  if (value === null || value === undefined) {
+function RainBadge({ value }) {
+  if (!Number.isFinite(value)) {
     return null;
   }
 
   return (
-    <Text style={styles.secondaryText}>
-      {label} {value}
-      {suffix}
-    </Text>
+    <View style={styles.rainBadge}>
+      <Text style={styles.rainText}>💧{value}%</Text>
+    </View>
   );
 }
 
-export default function ForecastCard({ forecast }) {
+export default function ForecastCard({ forecast, isLast, weatherTheme }) {
+  const compactWeather = {
+    condition: forecast.condition,
+    weatherCode: forecast.weatherCode,
+  };
+  const rowTheme = weatherTheme || theme.weatherThemes.sunny;
+
   return (
-    <View style={styles.card}>
-      <View style={styles.headerRow}>
-        <Text style={styles.dateText}>
-          {forecast.dayLabel === "Aujourd'hui"
-            ? forecast.dayLabel
-            : `${forecast.dayLabel} ${forecast.date}`}
-        </Text>
-        <Text style={styles.icon}>{getConditionIcon(forecast.condition)}</Text>
-      </View>
-
-      <Text style={styles.condition}>{forecast.condition}</Text>
-      <Text style={styles.temperatureText}>
-        {forecast.temperatureMin}°C / {forecast.temperatureMax}°C
+    <View style={[styles.row, !isLast && styles.rowBorder]}>
+      <Text style={styles.dayText}>{getDayText(forecast)}</Text>
+      <Text style={styles.icon}>{getWeatherIcon(compactWeather)}</Text>
+      <Text style={[styles.temperatureText, { color: rowTheme.primary }]}>
+        {forecast.temperatureMin}° / {forecast.temperatureMax}°
       </Text>
-
-      <View style={styles.metricsBlock}>
-        <OptionalMetric label="Pluie" suffix=" %" value={forecast.precipitationProbability} />
-        <OptionalMetric label="Vent" suffix=" km/h" value={forecast.windSpeedMax} />
-      </View>
+      <RainBadge value={forecast.precipitationProbability} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.lg,
-  },
-  headerRow: {
+  row: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
+    minHeight: 46,
+    paddingVertical: theme.spacing.sm,
   },
-  dateText: {
+  rowBorder: {
+    borderBottomColor: theme.colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dayText: {
     color: theme.colors.textPrimary,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
+    width: 44,
   },
   icon: {
-    fontSize: 26,
-    lineHeight: 30,
-  },
-  condition: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.sizes.md,
-    fontWeight: theme.typography.weights.semibold,
-    letterSpacing: 0,
-    marginBottom: theme.spacing.xs,
+    fontSize: 22,
+    lineHeight: 28,
+    marginRight: theme.spacing.md,
+    textAlign: 'center',
+    width: 32,
   },
   temperatureText: {
-    color: theme.colors.primaryDark,
+    flex: 1,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
-    marginBottom: theme.spacing.sm,
   },
-  metricsBlock: {
-    gap: theme.spacing.xs,
+  rainBadge: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceMuted,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minWidth: 58,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
-  secondaryText: {
+  rainText: {
     color: theme.colors.textMuted,
-    fontSize: theme.typography.sizes.sm,
-    fontWeight: theme.typography.weights.medium,
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.bold,
     letterSpacing: 0,
   },
 });

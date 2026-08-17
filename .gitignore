@@ -26,3 +26,14 @@ Thumbs.db
 .vscode/
 .idea/
 .codex-remote-attachments/
+
+# Android signing and build artifacts
+*.apk
+*.aab
+*.jks
+*.keystore
+credentials.json
+
+# Windows metadata
+*:Zone.Identifier
+*:mshield

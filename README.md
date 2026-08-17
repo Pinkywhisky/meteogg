@@ -299,6 +299,53 @@ npm run lint
 npx prettier --check App.js app.json package.json babel.config.js .eslintrc.js .prettierrc README.md src/**/*.js
 ```
 
+## Build Android de test
+
+Le profil `preview` génère un APK autonome destiné aux testeurs. L'application installée ne nécessite ni Expo Go, ni Metro, ni ordinateur.
+
+Au premier usage, installer EAS CLI si nécessaire, puis se connecter à Expo :
+
+```bash
+npm install -g eas-cli
+eas login
+```
+
+Lancer ensuite le build Android :
+
+```bash
+eas build --platform android --profile preview
+```
+
+Lors du premier build, accepter la génération d'un nouveau keystore Android par EAS. Ne jamais enregistrer ce keystore ou des identifiants Expo dans le dépôt.
+
+Une fois le build terminé, le lien EAS peut être partagé avec les testeurs. Sur leur téléphone Android, ils peuvent ouvrir ce lien, télécharger l'APK, autoriser si nécessaire l'installation depuis cette source, puis installer et lancer MeteoGG directement.
+
+## Build Android production
+
+Le profil `production` génère un AAB destiné à une future publication sur le Google Play Store. Cette commande construit l'application mais ne la publie pas :
+
+```bash
+eas build --platform android --profile production
+```
+
+Le numéro de version Android est géré à distance par EAS et automatiquement incrémenté pour les builds de production. La version utilisateur reste définie dans `app.json`.
+
+### Checklist avant un build
+
+- Vérifier que `git status` est propre.
+- Vérifier l'alignement des dépendances Expo.
+- Exécuter Expo Doctor.
+- Exécuter ESLint et Prettier.
+- Tester l'application avec Expo Go.
+
+```bash
+git status
+npx expo install --check
+npx expo-doctor
+npm run lint
+npx prettier --check App.js app.json package.json babel.config.js .eslintrc.js .prettierrc README.md src/**/*.js
+```
+
 ## Roadmap
 
 ### v1.0

@@ -2,7 +2,7 @@
   "expo": {
     "name": "MeteoGG",
     "slug": "meteogg",
-    "version": "0.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,9 +19,13 @@
     "android": {
       "package": "com.meteogg.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4F8FF"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -30,6 +34,11 @@
           "locationWhenInUsePermission": "MeteoGG utilise votre position pour afficher la météo locale au démarrage."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d2c6c4af-83c3-441c-8618-eecb3ba23953"
+      }
+    }
   }
 }
